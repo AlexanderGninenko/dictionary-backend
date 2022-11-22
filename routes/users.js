@@ -5,6 +5,7 @@ const {
   getMyUser,
   getAllUsers,
   deleteUser,
+  verifyUserEmail,
 } = require("../controllers/users");
 const checkAdminRights = require("../middlewares/checkAdminRights");
 const {
@@ -17,6 +18,7 @@ const router = express.Router();
 
 router.get("/", checkAdminRights, getAllUsers);
 router.get("/me", getMyUser);
+router.get("/confirm/:confirmationCode", verifyUserEmail);
 router.patch("/me", myUserProfileValidation, updateMyProfile);
 router.patch(
   "/:id",

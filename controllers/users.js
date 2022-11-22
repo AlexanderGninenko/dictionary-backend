@@ -5,14 +5,21 @@ const NotFoundError = require("../errors/NotFoundError");
 const ConflictError = require("../errors/ConflictError");
 const BadRequestError = require("../errors/BadRequestError");
 const ForbiddenError = require("../errors/ForbiddenError");
+const UnauthorizedError = require("../errors/UnauthorizedError");
+const sendConfirmationEmail = require("../utils/nodemailer");
 
 const { NODE_ENV, JWT_SECRET } = process.env;
 
 const login = (req, res, next) => {
   const { email, password } = req.body;
-
   return User.findUserByCredentials(email, password)
     .then((user) => {
+      console.log(user);
+      if (user.status !== "Active") {
+        throw new UnauthorizedError(
+          "Необходимо завершить регистрацию по электронной почте"
+        );
+      }
       const token = jwt.sign(
         { _id: user._id },
         NODE_ENV === "production" ? JWT_SECRET : "some-secret-key",
@@ -20,7 +27,7 @@ const login = (req, res, next) => {
       );
       res
         .cookie("jwt", token, {
-          maxAge: 3600000 * 24 * 7,
+          maxAge: 3600000 * 24 * 2,
           httpOnly: true,
           // sameSite: "none",
           // secure: true,
@@ -49,6 +56,11 @@ const getMyUser = (req, res, next) => {
 
 const createUser = (req, res, next) => {
   const { name, email, password } = req.body;
+  const token = jwt.sign(
+    { email },
+    NODE_ENV === "production" ? JWT_SECRET : "some-secret-key",
+    { expiresIn: "2d" }
+  );
   bcrypt
     .hash(password, 7)
     .then((hash) => {
@@ -56,14 +68,16 @@ const createUser = (req, res, next) => {
         name,
         email,
         password: hash,
+        confirmationCode: token,
       })
-        .then((user) =>
+        .then((user) => {
           res.send({
             name: user.name,
             email: user.email,
             category: user.category,
-          })
-        )
+          });
+          sendConfirmationEmail(user.name, user.email, user.confirmationCode);
+        })
         .catch((e) => {
           if (e.code === 11000) {
             next(new ConflictError("Такой пользователь уже существует"));
@@ -72,6 +86,19 @@ const createUser = (req, res, next) => {
           } else next(e);
         });
     })
+    .catch(next);
+};
+
+const verifyUserEmail = (req, res, next) => {
+  User.findOneAndUpdate(
+    { confirmationCode: req.params.confirmationCode },
+    { status: "Active" },
+    { new: true, runValidators: true }
+  )
+    .orFail(() => {
+      throw new NotFoundError("NotFound");
+    })
+    .then((data) => res.send({ data }))
     .catch(next);
 };
 
@@ -126,4 +153,5 @@ module.exports = {
   getMyUser,
   getAllUsers,
   deleteUser,
+  verifyUserEmail,
 };

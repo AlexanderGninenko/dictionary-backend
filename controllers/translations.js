@@ -2,6 +2,7 @@ const Translation = require("../models/translation");
 const ForbiddenError = require("../errors/ForbiddenError");
 const BadRequestError = require("../errors/BadRequestError");
 const NotFoundError = require("../errors/NotFoundError");
+const ConflictError = require("../errors/ConflictError");
 
 const getAllTranslations = (req, res, next) => {
   Translation.find()
@@ -19,8 +20,8 @@ const createTranslation = (req, res, next) => {
   const { nameRU, nameEN, description, category } = req.body;
   const owner = req.user._id;
   Translation.create({
-    nameRU,
-    nameEN,
+    nameRU: nameRU.toLowerCase(),
+    nameEN: nameEN.toLowerCase(),
     description,
     category,
     owner,
@@ -31,6 +32,8 @@ const createTranslation = (req, res, next) => {
     .catch((e) => {
       if (e.name === "ValidationError") {
         next(new BadRequestError("Переданы неверные данные"));
+      } else if (e.code === 11000) {
+        next(new ConflictError("Такой перевод уже существует"));
       } else next(e);
     });
 };
