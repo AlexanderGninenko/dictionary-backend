@@ -21,7 +21,7 @@ const sendConfirmationEmail = (name, email, confirmationCode, next) => {
       html: `<h1>Подтвердите Вашу регистрацию</h1>
           <h2>Здравствуйте, ${name}</h2>
           <p>Спасибо за регистрацию. Пожалуйста, подтвердите регистрацию по ссылке ниже</p>
-          <a href=http://localhost:4010/api/users/confirm/${confirmationCode}>Нажмите на эту ссылку</a>`,
+          <a href="http://localhost:4010/api/users/confirm/${confirmationCode}">Нажмите на эту ссылку</a>`,
     })
     .catch(next);
 };
